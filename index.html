@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clipboard Image Downloader</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .drop-zone {
+            border: 2px dashed #666;
+            padding: 40px;
+            width: 80%;
+            max-width: 800px;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+
+        .drop-zone:hover {
+            border-color: #fff;
+        }
+
+        .icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 24px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .title:hover {
+            text-decoration: underline;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-top: 20px;
+            font-style: italic;
+        }
+
+        #preview {
+            max-width: 100%;
+            max-height: 500px;
+            display: none;
+            margin-top: 20px;
+        }
+
+        .download-btn {
+            display: none;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .download-btn:hover {
+            background: #45a049;
+        }
+
+        .click-hint {
+            display: none;
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            pointer-events: none;
+            animation: fadeOut 2s forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="drop-zone" id="dropZone">
+        <div class="icon">📄⬇️</div>
+        <div class="title" id="pasteTitle">PASTE IMAGE TO DOWNLOAD</div>
+        <img id="preview" alt="Preview">
+        <button class="download-btn" id="downloadBtn">Download Image</button>
+        <div class="subtitle">Use the CTRL+V key combination to paste an image from your clipboard.</div>
+    </div>
+
+    <div class="click-hint" id="clickHint">Attempting to paste from clipboard...</div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const preview = document.getElementById('preview');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const pasteTitle = document.getElementById('pasteTitle');
+        const clickHint = document.getElementById('clickHint');
+
+        // Function to handle pasted image
+        function handlePastedImage(blob) {
+            if (!blob) return;
+            
+            const url = URL.createObjectURL(blob);
+            preview.src = url;
+            preview.style.display = 'block';
+            downloadBtn.style.display = 'block';
+
+            downloadBtn.onclick = () => {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'clipboard-image.png';
+                a.click();
+            };
+        }
+
+        // Handle manual paste event
+        document.addEventListener('paste', (event) => {
+            const items = event.clipboardData?.items;
+            
+            if (!items) return;
+
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    const blob = item.getAsFile();
+                    handlePastedImage(blob);
+                }
+            }
+        });
+
+        // Handle click on title to trigger paste
+        pasteTitle.addEventListener('click', async () => {
+            try {
+                // Show paste attempt hint
+                clickHint.style.display = 'block';
+                clickHint.style.left = `${event.pageX + 10}px`;
+                clickHint.style.top = `${event.pageY + 10}px`;
+                
+                // Try to read clipboard
+                const clipboardItems = await navigator.clipboard.read();
+                
+                for (const clipboardItem of clipboardItems) {
+                    for (const type of clipboardItem.types) {
+                        if (type.startsWith('image/')) {
+                            const blob = await clipboardItem.getType(type);
+                            handlePastedImage(blob);
+                            return;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.log('Failed to read clipboard:', err);
+                // Fallback to requesting manual paste
+                alert('Please use Ctrl+V to paste your image');
+            } finally {
+                // Hide hint after animation
+                setTimeout(() => {
+                    clickHint.style.display = 'none';
+                }, 2000);
+            }
+        });
+
+        // Handle drag and drop
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#fff';
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.borderColor = '#666';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#666';
+            
+            const file = e.dataTransfer?.files[0];
+            if (file?.type.startsWith('image/')) {
+                const url = URL.createObjectURL(file);
+                preview.src = url;
+                preview.style.display = 'block';
+                downloadBtn.style.display = 'block';
+
+                downloadBtn.onclick = () => {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = file.name || 'dropped-image.png';
+                    a.click();
+                };
+            }
+        });
+    </script>
+</body>
+</html>
